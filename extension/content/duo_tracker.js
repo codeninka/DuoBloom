@@ -23,7 +23,10 @@ function extractChallengeData() {
   };
 }
 
-const observer = new MutationObserver((mutations) => {
+let lastRun = 0;
+let throttleTimeout = null;
+
+function processChallenge() {
   const challengeData = extractChallengeData();
   if (challengeData && JSON.stringify(challengeData) !== lastProcessedChallenge) {
     lastProcessedChallenge = JSON.stringify(challengeData);
@@ -34,6 +37,20 @@ const observer = new MutationObserver((mutations) => {
       type: "NEW_CHALLENGE",
       data: challengeData
     });
+  }
+}
+
+const observer = new MutationObserver((mutations) => {
+  const now = Date.now();
+  if (now - lastRun >= 500) {
+    lastRun = now;
+    processChallenge();
+  } else {
+    clearTimeout(throttleTimeout);
+    throttleTimeout = setTimeout(() => {
+      lastRun = Date.now();
+      processChallenge();
+    }, 500 - (now - lastRun));
   }
 });
 

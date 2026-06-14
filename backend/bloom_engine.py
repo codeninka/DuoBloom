@@ -6,11 +6,14 @@ import json
 load_dotenv()
 
 # Configure Gemini
-# The user will need to provide GOOGLE_API_KEY in their environment
 api_key = os.getenv("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Configure model with a specific system instruction
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        system_instruction="You are an expert language teacher specializing in cognitive psychology and Bloom's Taxonomy. Your role is to analyze student activities and scaffold personalized challenges."
+    )
 else:
     model = None
 
@@ -39,37 +42,60 @@ async def classify_bloom_level(activity_data: dict):
     5. Evaluating: Nuance comparison, justifying word choice.
     6. Creating: Writing short stories or dialogues.
 
-    Return only a JSON object with "level" (int) and "explanation" (string).
+    Return only a JSON object matching this schema:
+    {{
+        "level": int,
+        "explanation": "string explaining the classification reasoning"
+    }}
     """
     
-    response = model.generate_content(prompt)
     try:
-        # Basic cleanup of markdown JSON if present
-        text = response.text.strip().replace("```json", "").replace("```", "")
-        return json.loads(text)
-    except:
-        return {"level": 1, "explanation": "Failed to parse response"}
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text.strip())
+    except Exception as e:
+        print(f"Error classifying level: {e}")
+        return {"level": 1, "explanation": f"Failed to parse model response: {str(e)}"}
 
 async def generate_next_level_challenge(current_level: int, words: list):
     if not model:
-        return {"question": "API Key not configured", "correct_answer": ""}
+        return {
+            "question": "API Key not configured. Please add GOOGLE_API_KEY to your backend .env file.",
+            "options": None,
+            "correct_answer": "",
+            "explanation": "API Key not configured"
+        }
 
     target_level = min(current_level + 1, 6)
     prompt = f"""
     Create a language learning challenge at Bloom's Taxonomy level {target_level} ({BLOOM_LEVELS[target_level]}).
-    Use these target words: {', '.join(words)}
+    Use these target words as the core concept: {', '.join(words)}
     
     The challenge should be engaging and appropriate for someone who just finished a level {current_level} task.
-    Return a JSON object with:
-    - "question": The task for the user.
-    - "options": List of 4 options (if applicable, else null).
-    - "correct_answer": The expected answer.
-    - "explanation": Why this is at level {target_level}.
+    If the target level is 1 or 2, multiple-choice is preferred. If it is 3 or above, open-ended sentence generation or dialogue composition is preferred.
+    
+    Return only a JSON object matching this schema:
+    {{
+        "question": "The challenge question or instruction prompt",
+        "options": ["Option A", "Option B", "Option C", "Option D"] or null (if it is open-ended text input),
+        "correct_answer": "The expected answer or example of a correct response",
+        "explanation": "A detailed explanation of why this activity fits level {target_level}"
+    }}
     """
 
-    response = model.generate_content(prompt)
     try:
-        text = response.text.strip().replace("```json", "").replace("```", "")
-        return json.loads(text)
-    except:
-        return {"question": "Error generating challenge", "correct_answer": ""}
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        return json.loads(response.text.strip())
+    except Exception as e:
+        print(f"Error generating challenge: {e}")
+        return {
+            "question": "Failed to generate challenge. Please try again.",
+            "options": None,
+            "correct_answer": "",
+            "explanation": str(e)
+        }

@@ -1,44 +1,377 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <style>
-    body { width: 300px; font-family: sans-serif; padding: 15px; }
-    .header { font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }
-    .stat { margin-bottom: 15px; }
-    #challenge-box { 
-      border: 1px solid #ddd; 
-      padding: 10px; 
-      margin-top: 10px; 
-      display: none; 
-      background: #f9f9f9;
+    :root {
+      --bg-dark: #0f1016;
+      --card-bg: rgba(22, 24, 37, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #58cc02;
+      --primary-hover: #46a302;
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --correct: #10b981;
+      --incorrect: #ef4444;
     }
-    button { 
-      background: #58cc02; 
-      color: white; 
-      border: none; 
-      padding: 10px; 
-      border-radius: 5px; 
-      cursor: pointer; 
+
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      background-color: var(--bg-dark);
+      font-family: 'Outfit', 'Inter', sans-serif;
+      color: var(--text-main);
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-text {
+      font-size: 1.35em;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #58cc02, #a3e635);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    /* Stat Cards */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Bloom Level Info */
+    .bloom-progress-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 20px;
+    }
+    .bloom-progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .progress-bar-bg {
       width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 6px;
     }
-    button:hover { background: #46a302; }
+    .progress-bar-fill {
+      height: 100%;
+      width: 16.66%; /* Default level 1 */
+      background: linear-gradient(90deg, var(--primary), #a3e635);
+      border-radius: 999px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bloom-level-name {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-main);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* Action Buttons */
+    button {
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-generate {
+      background: linear-gradient(135deg, var(--primary), #46a302);
+      color: white;
+      padding: 12px 16px;
+      width: 100%;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(88, 204, 2, 0.2);
+    }
+    .btn-generate:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(88, 204, 2, 0.35);
+    }
+    .btn-generate:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    .btn-generate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Challenge Display Box */
+    #challenge-box {
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 20px;
+      display: none;
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .challenge-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      margin-bottom: 12px;
+    }
+
+    #question {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: var(--text-main);
+    }
+
+    /* Dynamic Options for Multiple Choice */
+    .options-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .option-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      color: var(--text-main);
+    }
+    .option-card:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .option-card.selected {
+      background: rgba(88, 204, 2, 0.15);
+      border-color: var(--primary);
+      color: #a3e635;
+      font-weight: 600;
+    }
+
+    /* Text Input Area */
+    .input-container {
+      margin-bottom: 16px;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.85rem;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus, input[type="text"]:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .btn-submit {
+      background: var(--text-main);
+      color: var(--bg-dark);
+      padding: 10px;
+      width: 100%;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    .btn-submit:hover {
+      background: #ffffff;
+    }
+
+    /* Feedback & Rationale */
+    #feedback {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      display: none;
+      text-align: center;
+    }
+    #feedback.correct {
+      display: block;
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--correct);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    #feedback.incorrect {
+      display: block;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--incorrect);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    #explanation-box {
+      display: none;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--text-muted);
+      border-left: 3px solid var(--accent-purple);
+    }
+    .explanation-title {
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
   </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="header">DuoBloom</div>
-  <div class="stat">
-    Current Bloom Level: <span id="level-val">1</span>
-    <br>
-    Words Collected: <span id="word-count">0</span>
+  <!-- Extension Header -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="status-dot"></div>
+      <div class="logo-text">DuoBloom</div>
+    </div>
+  </div>
+
+  <!-- Progress Bar (Bloom's Taxonomy) -->
+  <div class="bloom-progress-container">
+    <div class="bloom-progress-header">
+      <span>Bloom's Stage</span>
+      <span>Level <strong id="level-val">1</strong>/6</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div id="progress-bar-fill" class="progress-bar-fill"></div>
+    </div>
+    <div id="bloom-level-name" class="bloom-level-name">Remembering</div>
   </div>
   
-  <button id="gen-btn">Generate Next Level Challenge</button>
+  <!-- General Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Words</div>
+      <div id="word-count" class="stat-value">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">History</div>
+      <div id="history-count" class="stat-value">0</div>
+    </div>
+  </div>
+  
+  <!-- Generate Button -->
+  <button id="gen-btn" class="btn-generate">Generate Next Level Challenge</button>
 
+  <!-- Challenge Area -->
   <div id="challenge-box">
-    <div id="question" style="margin-bottom: 10px;"></div>
-    <input type="text" id="answer" style="width: 100%; margin-bottom: 5px;">
-    <button id="check-btn">Check Answer</button>
-    <div id="feedback" style="margin-top: 5px; font-weight: bold;"></div>
+    <div id="challenge-badge" class="challenge-badge">Level 2 Challenge</div>
+    <div id="question">Loading question...</div>
+    
+    <!-- Option Container (For Multiple Choice) -->
+    <div id="options-container" class="options-container" style="display: none;">
+      <!-- Options injected dynamically by JS -->
+    </div>
+
+    <!-- Text Input Container (For Written Challenges) -->
+    <div id="text-input-container" class="input-container" style="display: none;">
+      <textarea id="answer" rows="2" placeholder="Type your translation or response here..."></textarea>
+    </div>
+    
+    <button id="check-btn" class="btn-submit">Submit Answer</button>
+    
+    <div id="feedback"></div>
+    
+    <!-- Rationale/Explanation Box -->
+    <div id="explanation-box">
+      <div class="explanation-title">Taxonomy Rationale</div>
+      <div id="explanation-text">Explanation details...</div>
+    </div>
   </div>
 
   <script src="popup.js"></script>

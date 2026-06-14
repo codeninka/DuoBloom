@@ -1,9 +1,19 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from .bloom_engine import classify_bloom_level, generate_next_level_challenge
+from bloom_engine import classify_bloom_level, generate_next_level_challenge
 
 app = FastAPI(title="DuoBloom API")
+
+# Enable CORS for extension requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ActivityData(BaseModel):
     header: str

@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async def classifyActivity(data) {
+async function classifyActivity(data) {
   try {
     const response = await fetch('http://localhost:8000/classify', {
       method: 'POST',
@@ -25,6 +25,16 @@ async def classifyActivity(data) {
     });
     const result = await response.json();
     currentSessionData.lastLevel = result.level;
+    
+    // Record into history
+    currentSessionData.history.push({
+      timestamp: new Date().toISOString(),
+      header: data.header,
+      type: data.type,
+      level: result.level,
+      explanation: result.explanation
+    });
+    
     console.log("Background: Activity classified as level", result.level);
     
     // Store in local storage for popup

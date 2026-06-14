@@ -1,25 +1,70 @@
 let currentChallenge = null;
+let selectedOption = null;
 
-function updateUI() {
-  chrome.storage.local.get(['currentSessionData'], (result) => {
-    if (result.currentSessionData) {
-      document.getElementById('level-val').innerText = result.currentSessionData.lastLevel;
-      document.getElementById('word-count').innerText = result.currentSessionData.words.length;
-    }
-  });
+const BLOOM_STAGES = {
+  1: "Remembering",
+  2: "Understanding",
+  3: "Applying",
+  4: "Analyzing",
+  5: "Evaluating",
+  6: "Creating"
+};
+
+function updateUI(sessionData) {
+  if (!sessionData) return;
+
+  const lastLevel = sessionData.lastLevel || 1;
+  const words = sessionData.words || [];
+  const history = sessionData.history || [];
+
+  // Update level text & name
+  document.getElementById('level-val').innerText = lastLevel;
+  document.getElementById('bloom-level-name').innerText = BLOOM_STAGES[lastLevel] || "Remembering";
+
+  // Update progress bar
+  const progressPercent = (lastLevel / 6) * 100;
+  document.getElementById('progress-bar-fill').style.width = `${progressPercent}%`;
+
+  // Update counts
+  document.getElementById('word-count').innerText = words.length;
+  document.getElementById('history-count').innerText = history.length;
 }
+
+// Load initial data
+chrome.storage.local.get(['currentSessionData'], (result) => {
+  if (result.currentSessionData) {
+    updateUI(result.currentSessionData);
+  }
+});
+
+// Reactive listener instead of setInterval
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (changes.currentSessionData) {
+    updateUI(changes.currentSessionData.newValue);
+  }
+});
 
 document.getElementById('gen-btn').addEventListener('click', async () => {
   const result = await chrome.storage.local.get(['currentSessionData']);
   const data = result.currentSessionData;
   
-  if (!data || data.words.length === 0) {
-    alert("Please start a Duolingo lesson first!");
+  if (!data || !data.words || data.words.length === 0) {
+    alert("Please start a Duolingo lesson first to collect words!");
     return;
   }
 
-  document.getElementById('gen-btn').innerText = "Generating...";
+  const genBtn = document.getElementById('gen-btn');
+  genBtn.innerText = "Generating Challenge...";
+  genBtn.disabled = true;
   
+  // Clear previous feedback & inputs
+  const feedback = document.getElementById('feedback');
+  feedback.style.display = 'none';
+  feedback.className = '';
+  document.getElementById('explanation-box').style.display = 'none';
+  document.getElementById('answer').value = '';
+  selectedOption = null;
+
   try {
     const response = await fetch(`http://localhost:8000/generate?current_level=${data.lastLevel}`, {
       method: 'POST',
@@ -29,27 +74,84 @@ document.getElementById('gen-btn').addEventListener('click', async () => {
     
     currentChallenge = await response.json();
     
-    document.getElementById('challenge-box').style.display = 'block';
+    // Set level badge
+    const targetLevel = currentChallenge.level || Math.min(data.lastLevel + 1, 6);
+    const badge = document.getElementById('challenge-badge');
+    badge.innerText = `Level ${targetLevel} Challenge: ${BLOOM_STAGES[targetLevel]}`;
+    
+    // Set question
     document.getElementById('question').innerText = currentChallenge.question;
-    document.getElementById('gen-btn').innerText = "Generate Next Level Challenge";
+    
+    // Dynamic input rendering
+    const optionsContainer = document.getElementById('options-container');
+    const textInputContainer = document.getElementById('text-input-container');
+    
+    if (currentChallenge.options && Array.isArray(currentChallenge.options) && currentChallenge.options.length > 0) {
+      // Multiple choice challenge
+      optionsContainer.innerHTML = '';
+      currentChallenge.options.forEach(opt => {
+        const card = document.createElement('button');
+        card.className = 'option-card';
+        card.innerText = opt;
+        card.addEventListener('click', () => {
+          // Deselect previous
+          document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedOption = opt;
+        });
+        optionsContainer.appendChild(card);
+      });
+      optionsContainer.style.display = 'grid';
+      textInputContainer.style.display = 'none';
+    } else {
+      // Open-ended challenge
+      optionsContainer.style.display = 'none';
+      textInputContainer.style.display = 'block';
+    }
+
+    document.getElementById('challenge-box').style.display = 'block';
+    genBtn.innerText = "Generate Next Level Challenge";
+    genBtn.disabled = false;
   } catch (error) {
     console.error("Popup: Error generating challenge", error);
-    document.getElementById('gen-btn').innerText = "Error (check console)";
+    genBtn.innerText = "Error (Backend Down?)";
+    genBtn.disabled = false;
   }
 });
 
 document.getElementById('check-btn').addEventListener('click', () => {
-  const userAnswer = document.getElementById('answer').value.trim();
+  if (!currentChallenge) return;
+
   const feedback = document.getElementById('feedback');
-  
-  if (userAnswer.toLowerCase() === currentChallenge.correct_answer.toLowerCase()) {
-    feedback.innerText = "Correct! Well done.";
-    feedback.style.color = "green";
+  let userAnswer = "";
+
+  if (currentChallenge.options && Array.isArray(currentChallenge.options) && currentChallenge.options.length > 0) {
+    if (!selectedOption) {
+      alert("Please select an option first!");
+      return;
+    }
+    userAnswer = selectedOption;
   } else {
-    feedback.innerText = `Incorrect. Expected: ${currentChallenge.correct_answer}`;
-    feedback.style.color = "red";
+    userAnswer = document.getElementById('answer').value.trim();
+    if (!userAnswer) {
+      alert("Please enter your answer first!");
+      return;
+    }
+  }
+
+  const isCorrect = userAnswer.toLowerCase() === currentChallenge.correct_answer.toLowerCase();
+  
+  if (isCorrect) {
+    feedback.innerText = "🎉 Correct! Excellent job.";
+    feedback.className = "correct";
+  } else {
+    feedback.innerText = `❌ Incorrect. Expected: ${currentChallenge.correct_answer}`;
+    feedback.className = "incorrect";
+  }
+  
+  // Show the taxonomy rationale explanation
+  if (currentChallenge.explanation) {
+    document.getElementById('explanation-text').innerText = currentChallenge.explanation;
+    document.getElementById('explanation-box').style.display = 'block';
   }
 });
-
-updateUI();
-setInterval(updateUI, 2000);
