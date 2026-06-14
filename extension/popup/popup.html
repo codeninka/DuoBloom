@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 300px; font-family: sans-serif; padding: 15px; }
+    .header { font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }
+    .stat { margin-bottom: 15px; }
+    #challenge-box { 
+      border: 1px solid #ddd; 
+      padding: 10px; 
+      margin-top: 10px; 
+      display: none; 
+      background: #f9f9f9;
+    }
+    button { 
+      background: #58cc02; 
+      color: white; 
+      border: none; 
+      padding: 10px; 
+      border-radius: 5px; 
+      cursor: pointer; 
+      width: 100%;
+    }
+    button:hover { background: #46a302; }
+  </style>
+</head>
+<body>
+  <div class="header">DuoBloom</div>
+  <div class="stat">
+    Current Bloom Level: <span id="level-val">1</span>
+    <br>
+    Words Collected: <span id="word-count">0</span>
+  </div>
+  
+  <button id="gen-btn">Generate Next Level Challenge</button>
+
+  <div id="challenge-box">
+    <div id="question" style="margin-bottom: 10px;"></div>
+    <input type="text" id="answer" style="width: 100%; margin-bottom: 5px;">
+    <button id="check-btn">Check Answer</button>
+    <div id="feedback" style="margin-top: 5px; font-weight: bold;"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
